@@ -1,85 +1,94 @@
 .include "consts.inc"
-.include "actors/actors.inc"
 .include "header.inc"
 .include "reset.inc"
 .include "utils.inc"
+.include "interfaces.inc"
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Zeropage (Fast-memory)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .segment "ZEROPAGE"
-Frame:          .res 1       ; Total amount of frame counted
-Clock60:        .res 1       ; Total amount of (60 frames) counted
-BgPtr:          .res 2       ; Pointer to background address - 16bits (lo,hi)
-SprPtr:         .res 2       ; Pointer to the sprite address - 16bits (lo,hi)
-param1:         .res 1
-param2:         .res 1
-param3:         .res 1
-ActorsArray:    .res MAX_ACTORS * .sizeof(Actor)
+Frame:            .res    1                       ; Total amount of frame counted
+Clock60:          .res    1                       ; Total amount of (60 frames) counted
+VBlankCompleted:  .res    1                       ; Flag to indicate when VBlank is done drawing
+BgPtr:            .res    2                       ; Pointer to background address - 16bits (lo,hi)
+SprPtr:           .res    2                       ; Pointer to the sprite address - 16bits (lo,hi)
+Param1:           .res    1                       ; Non-exclusive parameter (can be used anywhere)
+Param2:           .res    1                       ; Non-exclusive parameter (can be used anywhere)
+Param3:           .res    1                       ; Non-exclusive parameter (can be used anywhere)
+GameStage:        .res    1                       ; Current game stage of the player
+ActorsArray:      .res    MAX_ACTORS * .sizeof(Actor) ; Array of actors (sprites) on-screen
 
 .segment "CODE"
 .include "config.inc"
 .include "routines.inc"
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; FamiStudio audio engine configuration
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-.define FAMISTUDIO_CA65_ZP_SEGMENT   ZEROPAGE
-.define FAMISTUDIO_CA65_RAM_SEGMENT  RAM
-.define FAMISTUDIO_CA65_CODE_SEGMENT CODE
-
-FAMISTUDIO_CFG_EXTERNAL       = 1
-FAMISTUDIO_CFG_DPCM_SUPPORT   = 1
-FAMISTUDIO_CFG_SFX_SUPPORT    = 1
-FAMISTUDIO_CFG_SFX_STREAMS    = 2
-FAMISTUDIO_CFG_EQUALIZER      = 1
-FAMISTUDIO_USE_VOLUME_TRACK   = 1
-FAMISTUDIO_USE_PITCH_TRACK    = 1
-FAMISTUDIO_USE_SLIDE_NOTES    = 1
-FAMISTUDIO_USE_VIBRATO        = 1
-FAMISTUDIO_USE_ARPEGGIO       = 1
-FAMISTUDIO_CFG_SMOOTH_VIBRATO = 1
-FAMISTUDIO_USE_RELEASE_NOTES  = 1
-FAMISTUDIO_DPCM_OFF           = $E000
-
 .include "lib/audioengine.s"
-.include "states/titlescreen.s"
+.include "stages/titlescreen.s"
+.include "actors/actors.s"
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Reset
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Reset Interrupt
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 Reset:
-  INIT_NES
+    INIT_NES
 
-Main:
-  LOAD_PALETTE $3F00,TitlescreenPaletteData,#32
-  LOAD_NAMETABLE TitlescreenData
-;    PRINT_SPRITE ThunderMetaData
+    ; Initialize variables
+    lda #0
+    sta GameStage
+    sta Frame
+    sta Clock60
 
-  ldx #<sounds
-  ldy #>sounds
-  jsr famistudio_sfx_init
+    ; Enable sound engine if defined in
+    ; configurations
+    .if MUSIC_ENABLED = 1 .or SFX_ENABLED = 1
+      lda #1                                      ; NTSC
+      jsr famistudio_init
+    .endif
 
-  jsr Titlescreen::init
+    ; Load sound banks if defined in
+    ; configurations
+    .if SFX_ENABLED = 1
+      ldx #<sounds
+      ldy #>sounds
+      jsr famistudio_sfx_init
+    .endif
+
+    ; Load current game stage
+    lda GameStage
+    bne :+
+      jsr Titlescreen::init
+    :
 
 EnableRendering:
-    lda #%10010000           ; Enable NMI and set background to use the 2nd pattern table (at $1000)
+    lda #%10010000                                ; Enable NMI and set background to use the 2nd pattern table (at $1000)
     sta PPU_CTRL
     lda #0
-    sta PPU_SCROLL           ; Disable scroll in X
-    sta PPU_SCROLL           ; Disable scroll in Y
+    sta PPU_SCROLL                                ; Disable scroll in X
+    sta PPU_SCROLL                                ; Disable scroll in Y
     lda #%00011110
-    sta PPU_MASK             ; Set PPU_MASK bits to render the background
+    sta PPU_MASK                                  ; Set PPU_MASK bits to render the background
 
-  InfiniteLoop:
-    jmp InfiniteLoop
+GameLoop:
+    jsr famistudio_update                         ; Call audio engine update (to progress audio frame per frame)
+    jsr Titlescreen::update
+    jsr Actors::update
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+WaitForVBlank:                                    ; We lock the execution of the game logic here
+    lda VBlankCompleted                           ; Here we check and only perform a game loop call once NMI is done drawing
+    beq WaitForVBlank                             ; Otherwise, we keep looping
+      lda #0
+      sta VBlankCompleted                         ; Once we're done, we set the DrawComplete flag back to 0
+
+    jmp GameLoop
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; NMI: Non-Maskable Interrupt
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 NMI:
-  PUSH_REGS                   ; Push registers to the stack
+    PUSH_REGS                                     ; Push registers to the stack
 
-  inc Frame                   ; Increment the frame counter
-
-  CalculateClocks:
+    inc Frame                                     ; Increment the frame counter
+CalculateClock:
     lda Frame
     cmp #60
     bne :+
@@ -88,38 +97,32 @@ NMI:
       inc Clock60
     :
 
-  jsr famistudio_update       ; Call audio engine update (to progress audio frame per frame)
-  jsr Actors::update
-  jsr Actors::render
-  jsr Titlescreen::update
+Render:
+    jsr Actors::render
 
-  PULL_REGS                   ; Pull register back from the stack
-  rti
+SetDrawComplete:
+    lda #1
+    sta VBlankCompleted                           ; Set the DrawComplete flag to indicate we are done drawing to the PPU
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    PULL_REGS                                     ; Pull register back from the stack
+    rti
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Interrupt Handler
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 IRQ:
-  rti
+    rti
 
-TitlescreenData:
-  .incbin "levels/titlescreen.nam"
+TitlescreenData:  .incbin "levels/titlescreen.nam"
 TitlescreenPaletteData:
-  .incbin "levels/titlescreen.pal"
-  .incbin "levels/titlescreen.pal"
-ThunderMetaData:
-  	.byte   0,  0,$01,1
-  	.byte   8,  0,$02,1
-  	.byte   0,  8,$03,1
-  	.byte   8,  8,$04,1
+.incbin "levels/titlescreen.pal"
+.incbin "levels/titlescreen.pal"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Here goes the encoded music data that was exported by FamiStudio
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-MusicData:
-.include "musics/titan.s"
-SfxData:
-.include "musics/sfx.s"
+MusicData:        .include "musics/titlescreen.s"
+SfxData:          .include "musics/sfx.s"
 
 .segment "CHARS"
 .incbin "bin/titlescreen.chr"

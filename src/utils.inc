@@ -1,4 +1,30 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Prepare global parameters for eventual CALL_PROC call
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+.macro PREPARE_PARAMS param1,param2,param3
+  .ifnblank param1
+    lda param1
+    sta Param1
+  .endif
+  .ifnblank param2
+    lda param2
+    sta Param2
+  .endif
+  .ifnblank param3
+    lda param3
+    sta Param3
+  .endif
+.endmacro
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Call procedure with parameters
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+.macro CALL_PROC pointer,param1,param2,param3
+    PREPARE_PARAMS param1,param2,param3
+    jsr pointer                                   ; Jump to function's pointer sub-routine
+.endmacro
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Macro to disable PPU rendering and NMI
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .macro PPU_DISABLE_NMI
@@ -11,11 +37,11 @@
 ;; Macro to set a 16-bit address to the PPU_ADDR register (at $2006)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .macro PPU_SETADDR addr
-    bit PPU_STATUS           ; Read from PPU_STATUS to reset the address latch
-    lda #>addr               ; Fetch the hi-byte from 16-bit address
-    sta PPU_ADDR             ; Store the hi-byte into PPU_ADDR $2006
-    lda #<addr               ; Fetch the lo-byte from 16-bit address
-    sta PPU_ADDR             ; Store the lo-byte into PPU_ADDR $2006
+    bit PPU_STATUS                                ; Read from PPU_STATUS to reset the address latch
+    lda #>addr                                    ; Fetch the hi-byte from 16-bit address
+    sta PPU_ADDR                                  ; Store the hi-byte into PPU_ADDR $2006
+    lda #<addr                                    ; Fetch the lo-byte from 16-bit address
+    sta PPU_ADDR                                  ; Store the lo-byte into PPU_ADDR $2006
 .endmacro
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -23,29 +49,56 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .macro PPU_SETDATA val
     lda val
-    sta PPU_DATA             ; Send value to PPU register at $2007
+    sta PPU_DATA                                  ; Send value to PPU register at $2007
 .endmacro
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Macro to push and preserv registers A, X, Y, and status flags on the Stack.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .macro PUSH_REGS
-    pha                      ; Push A to the stack
+    pha                                           ; Push A to the stack
     txa
-    pha                      ; Push X to the stack
+    pha                                           ; Push X to the stack
     tya
-    pha                      ; Push Y to the stack
-    php                      ; Push Processor Status flags to the stack
+    pha                                           ; Push Y to the stack
+    php                                           ; Push Processor Status flags to the stack
 .endmacro
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Macro to pull and restore registers A,X,Y, and status flags from the Stack.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .macro PULL_REGS
-    plp                      ; Restore the the status flags from the stack
-    pla                      ; Restore the old value of X from the stack
+    plp                                           ; Restore the the status flags from the stack
+    pla                                           ; Restore the old value of X from the stack
     tay
-    pla                      ; Restore the old value of X from the stack
+    pla                                           ; Restore the old value of X from the stack
     tax
-    pla                      ; Pull A from the stack
+    pla                                           ; Pull A from the stack
+.endmacro
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Macro to select song and initiate playing
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+.macro PLAY_MUSIC addr
+    .if MUSIC_ENABLED = 1
+      ldx #<addr
+      ldy #>addr
+
+      lda #1                                      ; NTSC
+      jsr famistudio_init
+
+      lda #0
+      jsr famistudio_music_play
+    .endif
+.endmacro
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Macro to play a sound effect
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+.macro PLAY_SOUND index,channel
+    .if SFX_ENABLED = 1
+      lda index
+      ldx channel
+      jsr famistudio_sfx_play
+    .endif
 .endmacro
