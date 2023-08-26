@@ -19,7 +19,7 @@
     tax                                           ; X += sizeof(Actor)
     jmp ArrayLoop
 
-  AddNewActorToArray:                               ; Here we add a new actor at index [x] of the array
+  AddNewActorToArray:                             ; Here we add a new actor at index [x] of the array
     lda Param1                                    ; Fetch parameter "actor type" from RAM
     sta ActorsArray+Actor::Type,x
     lda Param2                                    ; Fetch parameter "actor position X" from RAM
@@ -75,7 +75,7 @@
   ;; Subroutine to loop all actors and send their tiles to the OAM-RAM at $200
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   .proc render
-      ldx #0                             ; Counts how many actors we are looping
+      ldx #0                                      ; Counts how many actors we are looping
   ActorsLoop:
       lda ActorsArray+Actor::Type,x
 
@@ -92,7 +92,7 @@
 ;      cmp #MAX_ACTORS * .sizeof(Actor)
 ;      bne ActorsLoop
 ;      tya
-;      pha                                ; Save the Y register to the stack
+;      pha                                         ; Save the Y register to the stack
 
       rts
   .endproc
