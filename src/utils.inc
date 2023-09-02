@@ -1,7 +1,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Prepare global parameters for eventual CALL_PROC call
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-.macro PREPARE_PARAMS param1,param2,param3
+.macro PREPARE_PARAMS param1,param2,param3,param4,param5
   .ifnblank param1
     lda param1
     sta Param1
@@ -77,28 +77,54 @@
 .endmacro
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Macro to select song and initiate playing
+;; Set the index of the bit in the accumulator to the value passed in parameter
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-.macro PLAY_MUSIC addr
-    .if MUSIC_ENABLED = 1
-      ldx #<addr
-      ldy #>addr
+.macro SET_BIT_INDEX index,value
+    lda value
+    ldx #0                                        ; Start at index 1
+@Loop:
+    cpx index
+    beq :+                                        ; If index is at zero, jump to flipping the bits
+      asl                                         ; Shift bit to the left since not at index
+      inx
+      jmp @Loop
+    :
 
-      lda #1                                      ; NTSC
-      jsr famistudio_init
+    ldx value                                     ; Compare the value to determine if we set 0 or 1
+    bne :+                                        ; If 0, we flip and invert bits
+      ora value                                   ; Flip the bit at given index
+      eor #%11111111                              ; Invert all bits
+      jmp @EndLoop
+    :
+    ora value                                     ; Value was positive, just flip bit
 
-      lda #0
-      jsr famistudio_music_play
-    .endif
+@EndLoop:
 .endmacro
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Macro to play a sound effect
+;; Macro to select song and initiate playing
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-.macro PLAY_SOUND index,channel
-    .if SFX_ENABLED = 1
-      lda index
-      ldx channel
-      jsr famistudio_sfx_play
-    .endif
+.macro PLAY_MUSIC addr
+  .if MUSIC_ENABLED = 1
+    ldx #<addr
+    ldy #>addr
+
+    lda #1                                        ; NTSC
+    jsr famistudio_init
+
+    lda #0
+    jsr famistudio_music_play
+  .endif
+.endmacro
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Buffer sound effect to play later on after game logic is executed
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+.macro BUFFER_SOUND index,channel
+  .if SFX_ENABLED = 1
+    SET_BIT_INDEX index,#1
+    sta PlaySound+channel
+    lda index
+    sta SfxBuffer+channel
+  .endif
 .endmacro

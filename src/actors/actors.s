@@ -1,10 +1,8 @@
-.scope Actors
-
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  ;; Subroutine to add new actor to the array in the first empty slot found
-  ;; Params = Type, XPos, YPos
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  .proc push
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Subroutine to add new actor to the array in the first empty slot found
+;; Params = Type, XPos, YPos
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+.proc PushActor
     ldx #0                                        ; X = 0
   ArrayLoop:
     cpx #MAX_ACTORS * .sizeof(Actor)              ; Reached maximum number of actors allowed in the array?
@@ -34,7 +32,9 @@
     sta ActorsArray+Actor::Clock,x                ; Every actor are idles
   EndRoutine:
     rts
-  .endproc
+.endproc
+
+.scope Actors
 
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;; Subroutine to update the actor states
@@ -47,26 +47,31 @@
     lda #$00
     sta SprPtr
 
-    ldx #0
+    ; Loop through all actors
+    ldx #0                                        ; Actor index
   ActorsLoop:
     lda ActorsArray+Actor::Type,x
     cmp #ActorType::NULL
-    beq @NextActor
-
-    cmp #ActorType::THUNDER                       ; Thunder
     bne :+
-      .include "thunder.update.s"
+      jmp NextActor
     :
 
-  @NextActor:                                     ; Fetch the next actor from the array
-    inc ActorsArray+Actor::Clock,x
+    cmp #ActorType::THUNDER                       ; Thunder
+    beq :+
+      jmp NextActor
+    :
+    .include "thunder.s"
 
+    inc ActorsArray+Actor::Clock,x
+  NextActor:                                      ; Fetch the next actor from the array
     txa
     clc
     adc #.sizeof(Actor)
     tax
     cmp #MAX_ACTORS * .sizeof(Actor)
-    bne ActorsLoop
+    beq :+
+      jmp ActorsLoop
+    :
 
     rts
   .endproc
@@ -75,25 +80,8 @@
   ;; Subroutine to loop all actors and send their tiles to the OAM-RAM at $200
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   .proc render
-      ldx #0                                      ; Counts how many actors we are looping
-  ActorsLoop:
-      lda ActorsArray+Actor::Type,x
-
-      cmp #ActorType::THUNDER
-      bne :+
-        .include "thunder.render.s"
-      :
-
-;    NextActor:
-;      txa
-;      clc
-;      adc #.sizeof(Actor)
-;      tax
-;      cmp #MAX_ACTORS * .sizeof(Actor)
-;      bne ActorsLoop
-;      tya
-;      pha                                         ; Save the Y register to the stack
-
-      rts
+    lda #$02                                      ; Every frame, we copy sprite data starting at $02**.
+    sta $4014                                     ; The OAM-DMA copy starts when we write to $4014.
+    rts
   .endproc
 .endscope

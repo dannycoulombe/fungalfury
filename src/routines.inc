@@ -46,8 +46,40 @@ EndLoop:
 .endproc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Copy a sprite data to the OAM buffer
+;; Loop through a metasprite dataset and send the sprites to the OAM-RAM buffer
+;; pointer,yPos,xPos
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-.macro RENDER_SPRITE YPos,tile,attributes,XPos
-    rts
-.endmacro
+.proc SetMetasprite
+    ldy Param1                                    ; Get total amount of bytes to read
+    ldx #1
+@LoopMetaSprite:
+    tya
+    pha
+
+    ldy #0
+
+    lda Param2
+    adc Param1+1,x
+    sta (SprPtr),y                                ; Y position
+    inc SprPtr
+
+    lda Param1+2,x
+    sta (SprPtr),y                                ; Tile index
+
+    lda Param1+3,x
+    sta (SprPtr),y                                ; Attributes
+
+    lda Param3
+    adc Param1+0,x
+    sta (SprPtr),y                                ; X position
+
+    inx                                           ; Increment by fow bytes for next tile
+    inx
+    inx
+    inx
+
+    pla
+    tay
+    dey
+    bne @LoopMetaSprite
+.endproc

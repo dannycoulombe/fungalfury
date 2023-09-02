@@ -1,8 +1,7 @@
 .include "consts.inc"
 .include "header.inc"
-.include "reset.inc"
-.include "utils.inc"
 .include "interfaces.inc"
+.include "utils.inc"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Zeropage (Fast-memory)
@@ -13,6 +12,10 @@ Clock60:          .res    1                       ; Total amount of (60 frames) 
 VBlankCompleted:  .res    1                       ; Flag to indicate when VBlank is done drawing
 BgPtr:            .res    2                       ; Pointer to background address - 16bits (lo,hi)
 SprPtr:           .res    2                       ; Pointer to the sprite address - 16bits (lo,hi)
+PlaySound:        .res    1                       ; Bit 1-4 represent channels that must be played (1) or not (0)
+SfxBuffer:        .res    2                       ; Each byte represent a channel with an index of sound effect
+xScroll:          .res    1                       ; Horizontal background scroll
+yScroll:          .res    1                       ; Vertical background scroll
 Param1:           .res    1                       ; Non-exclusive parameter (can be used anywhere)
 Param2:           .res    1                       ; Non-exclusive parameter (can be used anywhere)
 Param3:           .res    1                       ; Non-exclusive parameter (can be used anywhere)
@@ -21,7 +24,9 @@ ActorsArray:      .res    MAX_ACTORS * .sizeof(Actor) ; Array of actors (sprites
 
 .segment "CODE"
 .include "config.inc"
+.include "reset.inc"
 .include "routines.inc"
+.include "buffer.inc"
 .include "lib/audioengine.s"
 .include "stages/titlescreen.s"
 .include "actors/actors.s"
@@ -37,6 +42,8 @@ Reset:
     sta GameStage
     sta Frame
     sta Clock60
+    sta PlaySound
+    sta SfxBuffer
 
     ; Enable sound engine if defined in
     ; configurations
@@ -69,9 +76,15 @@ EnableRendering:
     sta PPU_MASK                                  ; Set PPU_MASK bits to render the background
 
 GameLoop:
-    jsr famistudio_update                         ; Call audio engine update (to progress audio frame per frame)
     jsr Titlescreen::update
-    jsr Actors::update
+    jsr Actors::update                            ; Update all actors
+    jsr Buffer::update                            ; Perform all actions in buffer
+
+    ; Apply background scrolling positions
+    lda xScroll
+    sta PPU_SCROLL
+    lda yScroll
+    sta PPU_SCROLL
 
 WaitForVBlank:                                    ; We lock the execution of the game logic here
     lda VBlankCompleted                           ; Here we check and only perform a game loop call once NMI is done drawing

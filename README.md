@@ -10,6 +10,6 @@ Make sure you have the `ca65` compiler and `ld65` linker installed and use the M
 make build
 ```
 
-Then open the `./dist/game.nes` in your favourite emulator!
+Then open `./dist/game.nes` in your favourite emulator!
 
 Enjoy!

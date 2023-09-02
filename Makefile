@@ -6,7 +6,12 @@ build:
 clean:
 	rm dist/*.o dist/*.nes
 
-run:
+fceux:
 	fceux dist/game.nes
 
-all: build run
+mesen:
+	/home/dcoulombe/Downloads/Mesen.exe dist/game.nes
+
+all_fceux: build fceux
+all_mesen: build mesen
+
