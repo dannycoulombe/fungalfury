@@ -4,8 +4,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .enum ActorType
     NULL = 0
-    PLAYER = 1
-    THUNDER = 2
+    PLAYER = 2
+    THUNDER = 3
+    SMALL_CLOUD = 4
+    BIG_CLOUD = 5
 .endenum
 
 .enum ActorState

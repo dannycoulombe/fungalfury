@@ -1,6 +1,4 @@
-    pha
-    txa
-    pha
+    PUSH_REGS
 
     lda ActorsArray+Actor::Clock,x
     bne @LoopNext
@@ -8,15 +6,14 @@
 @LoopNext:
 
     lda ActorsArray+Actor::Clock,x
-    cmp #15
+    cmp #6
     bne @LoopContinue
-      lda ThunderMetadata
-      sta Param1
-      lda ActorsArray+Actor::YPos,x
-      sta Param2
-      lda ActorsArray+Actor::XPos,x
-      sta Param3
-      jsr SetMetasprite
+      PUSH_REGS
+
+      SET_CURRENT_ACTOR_METAOBJECT ThunderMetadata
+      CHANGE_PALETTE_COLOR_AT_RUNTIME $3F02,#$11
+
+      PULL_REGS
       jmp ActorThunderEnd
 @LoopContinue:
 
@@ -31,13 +28,11 @@
     jmp ActorThunderEnd                           ; Make sure to skip metadata
 
 ThunderMetadata:
-	.byte   4
-	.byte   0, 0,$01,1
-	.byte   8, 0,$02,1
-	.byte   0, 8,$03,1
-	.byte   8, 8,$04,1
+	.byte   0,$01,1,0
+	.byte   8,$02,1,0
+	.byte   0,$03,1,8
+	.byte   8,$04,1,8
+	.byte   $80
 
 ActorThunderEnd:
-    pla
-    tax
-    pla
+    PULL_REGS

@@ -2,7 +2,8 @@
 
   .proc update
     jsr famistudio_update                         ; Call audio engine update (to progress audio frame per frame)
-    jsr playSounds
+    jsr playSounds                                ; Play all sounds in memory
+    jsr ApplyBackgroundScroll                     ; Scrolling position needs to be resetted
     rts
   .endproc
 

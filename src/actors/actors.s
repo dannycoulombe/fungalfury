@@ -21,9 +21,9 @@
     lda Param1                                    ; Fetch parameter "actor type" from RAM
     sta ActorsArray+Actor::Type,x
     lda Param2                                    ; Fetch parameter "actor position X" from RAM
-    sta ActorsArray+Actor::XPos,x
-    lda Param3                                    ; Fetch parameter "actor position Y" from RAM
     sta ActorsArray+Actor::YPos,x
+    lda Param3                                    ; Fetch parameter "actor position Y" from RAM
+    sta ActorsArray+Actor::XPos,x
     lda #ActorState::IDLE
     sta ActorsArray+Actor::State,x                ; Every actor are idles
     lda #0
@@ -56,11 +56,21 @@
       jmp NextActor
     :
 
-    cmp #ActorType::THUNDER                       ; Thunder
+    lda ActorsArray+Actor::Type,x
+    cmp #ActorType::THUNDER
     beq :+
-      jmp NextActor
+      jmp AfterActorThunder
     :
     .include "thunder.s"
+  AfterActorThunder:
+
+    lda ActorsArray+Actor::Type,x
+    cmp #ActorType::SMALL_CLOUD
+    beq :+
+      jmp AfterActorSmallCloud
+    :
+    .include "small-cloud.s"
+  AfterActorSmallCloud:
 
     inc ActorsArray+Actor::Clock,x
   NextActor:                                      ; Fetch the next actor from the array

@@ -7,20 +7,21 @@
 ;; Zeropage (Fast-memory)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .segment "ZEROPAGE"
-Frame:            .res    1                       ; Total amount of frame counted
-Clock60:          .res    1                       ; Total amount of (60 frames) counted
-VBlankCompleted:  .res    1                       ; Flag to indicate when VBlank is done drawing
-BgPtr:            .res    2                       ; Pointer to background address - 16bits (lo,hi)
-SprPtr:           .res    2                       ; Pointer to the sprite address - 16bits (lo,hi)
-PlaySound:        .res    1                       ; Bit 1-4 represent channels that must be played (1) or not (0)
-SfxBuffer:        .res    2                       ; Each byte represent a channel with an index of sound effect
-xScroll:          .res    1                       ; Horizontal background scroll
-yScroll:          .res    1                       ; Vertical background scroll
-Param1:           .res    1                       ; Non-exclusive parameter (can be used anywhere)
-Param2:           .res    1                       ; Non-exclusive parameter (can be used anywhere)
-Param3:           .res    1                       ; Non-exclusive parameter (can be used anywhere)
-GameStage:        .res    1                       ; Current game stage of the player
-ActorsArray:      .res    MAX_ACTORS * .sizeof(Actor) ; Array of actors (sprites) on-screen
+Frame:           .res 1                           ; Total amount of frame counted
+Clock60:         .res 1                           ; Total amount of (60 frames) counted
+VBlankCompleted: .res 1                           ; Flag to indicate when VBlank is done drawing
+BgPtr:           .res 2                           ; Pointer to background address - 16bits (lo,hi)
+SprPtr:          .res 2                           ; Pointer to the sprite address - 16bits (lo,hi)
+PlaySound:       .res 1                           ; Bit 1-4 represent channels that must be played (1) or not (0)
+SfxBuffer:       .res 2                           ; Each byte represent a channel with an index of sound effect
+Param1:          .res 1                           ; Non-exclusive parameter (can be used anywhere)
+Param2:          .res 1                           ; Non-exclusive parameter (can be used anywhere)
+Param3:          .res 1                           ; Non-exclusive parameter (can be used anywhere)
+ParamPtr1:       .res 2                           ; Non-exclusive 16bits (lo,hi) pointer parameter (can be used anywhere)
+GameStage:       .res 1                           ; Current game stage of the player
+ActorsArray:     .res MAX_ACTORS * .sizeof(Actor) ; Array of actors (sprites) on-screen
+xScroll:         .res 1                           ; Horizontal background scroll
+yScroll:         .res 1                           ; Vertical background scroll
 
 .segment "CODE"
 .include "config.inc"
@@ -67,24 +68,15 @@ Reset:
     :
 
 EnableRendering:
-    lda #%10010000                                ; Enable NMI and set background to use the 2nd pattern table (at $1000)
+    lda #NMI_BIT_SEQUENCE                         ; Enable NMI and set background to use the 2nd pattern table (at $1000)
     sta PPU_CTRL
-    lda #0
-    sta PPU_SCROLL                                ; Disable scroll in X
-    sta PPU_SCROLL                                ; Disable scroll in Y
-    lda #%00011110
+    lda #PPU_MASK_BIT_SEQUENCE
     sta PPU_MASK                                  ; Set PPU_MASK bits to render the background
 
 GameLoop:
     jsr Titlescreen::update
     jsr Actors::update                            ; Update all actors
     jsr Buffer::update                            ; Perform all actions in buffer
-
-    ; Apply background scrolling positions
-    lda xScroll
-    sta PPU_SCROLL
-    lda yScroll
-    sta PPU_SCROLL
 
 WaitForVBlank:                                    ; We lock the execution of the game logic here
     lda VBlankCompleted                           ; Here we check and only perform a game loop call once NMI is done drawing
@@ -115,7 +107,7 @@ Render:
 
 SetDrawComplete:
     lda #1
-    sta VBlankCompleted                           ; Set the DrawComplete flag to indicate we are done drawing to the PPU
+    sta VBlankCompleted                           ; Set the VBlankCompleted flag to indicate we are done drawing to the PPU
 
     PULL_REGS                                     ; Pull register back from the stack
     rti
@@ -137,8 +129,14 @@ TitlescreenPaletteData:
 MusicData:        .include "musics/titlescreen.s"
 SfxData:          .include "musics/sfx.s"
 
-.segment "CHARS"
+.segment "SPRITES"
+.incbin "bin/sprites.chr"
+
+.segment "BACKGROUNDS"
 .incbin "bin/titlescreen.chr"
+.incbin "bin/water.anim.chr"
+.incbin "bin/stars.anim.chr"
+.incbin "bin/offset.chr"
 
 .segment "VECTORS"
 .word NMI
