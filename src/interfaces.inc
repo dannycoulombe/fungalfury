@@ -22,10 +22,11 @@
 ;; Struct to hold the data for one actor
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .struct Actor
-    Type   .byte
-    XPos   .byte
-    YPos   .byte
-    State  .byte                                  ; The ActorState enum
-    Frame  .byte                                  ; The frame to display
-    Clock  .byte                                  ; Counting every frame since init
+    Type        .byte
+    XPos        .byte
+    YPos        .byte
+    XVel        .byte
+    YVel        .byte
+    State       .byte                             ; The ActorState enum
+    Clock       .byte                             ; Counting every frame since init
 .endstruct

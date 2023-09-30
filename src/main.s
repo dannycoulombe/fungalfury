@@ -8,6 +8,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .segment "ZEROPAGE"
 Frame:           .res 1                           ; Total amount of frame counted
+CountTo32:       .res 1                           ; Counts to 16 frames then reset to 0
 Clock60:         .res 1                           ; Total amount of (60 frames) counted
 VBlankCompleted: .res 1                           ; Flag to indicate when VBlank is done drawing
 BgPtr:           .res 2                           ; Pointer to background address - 16bits (lo,hi)
@@ -28,6 +29,7 @@ yScroll:         .res 1                           ; Vertical background scroll
 .include "reset.inc"
 .include "routines.inc"
 .include "buffer.inc"
+.include "background.inc"
 .include "lib/audioengine.s"
 .include "stages/titlescreen.s"
 .include "actors/actors.s"
@@ -42,6 +44,7 @@ Reset:
     lda #0
     sta GameStage
     sta Frame
+    sta CountTo32
     sta Clock60
     sta PlaySound
     sta SfxBuffer
@@ -93,14 +96,26 @@ NMI:
     PUSH_REGS                                     ; Push registers to the stack
 
     inc Frame                                     ; Increment the frame counter
+
 CalculateClock:
     lda Frame
     cmp #60
-    bne :+
+    bne CalculateClockEnd
       lda #0
       sta Frame
       inc Clock60
-    :
+    CalculateClockEnd:
+
+CalculateCountTo32:
+    inc CountTo32
+    lda CountTo32
+    cmp #64
+    bne CalculateCountTo32End
+      lda #0
+      sta CountTo32
+    CalculateCountTo32End:
+
+    jsr Background::switchBankCheck
 
 Render:
     jsr Actors::render
@@ -129,14 +144,27 @@ TitlescreenPaletteData:
 MusicData:        .include "musics/titlescreen.s"
 SfxData:          .include "musics/sfx.s"
 
-.segment "SPRITES"
+.segment "CHARS1"
 .incbin "bin/sprites.chr"
-
-.segment "BACKGROUNDS"
 .incbin "bin/titlescreen.chr"
-.incbin "bin/water.anim.chr"
-.incbin "bin/stars.anim.chr"
-.incbin "bin/offset.chr"
+.incbin "bin/water.frame1.chr"
+.incbin "bin/stars.frame1.chr"
+.incbin "bin/offset.anim.chr"
+
+.segment "CHARS2"
+.incbin "bin/sprites.chr"
+.incbin "bin/water.frame1.chr"
+.incbin "bin/stars.frame1.chr"
+.incbin "bin/offset.anim.chr"
+.incbin "bin/water.frame2.chr"
+.incbin "bin/stars.frame2.chr"
+.incbin "bin/offset.anim.chr"
+.incbin "bin/water.frame3.chr"
+.incbin "bin/stars.frame3.chr"
+.incbin "bin/offset.anim.chr"
+.incbin "bin/water.frame4.chr"
+.incbin "bin/stars.frame4.chr"
+.incbin "bin/offset.anim.chr"
 
 .segment "VECTORS"
 .word NMI

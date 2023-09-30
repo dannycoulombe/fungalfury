@@ -36,6 +36,27 @@
 .endmacro
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Macro to push PPU_ADDR to the stack
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+.macro PUSH_PPU_ADDR
+    lda #<PPU_ADDR
+    pha
+    lda #>PPU_ADDR
+    pha
+.endmacro
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Restore the PPU_ADDR from the stack
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+.macro PULL_PPU_ADDR
+    bit PPU_STATUS                                ; Read from PPU_STATUS to reset the address latch
+    pla                                           ; Fetch the hi-byte from 16-bit address
+    sta PPU_ADDR                                  ; Store the hi-byte into PPU_ADDR $2006
+    pla                                           ; Fetch the lo-byte from 16-bit address
+    sta PPU_ADDR                                  ; Store the lo-byte into PPU_ADDR $2006
+.endmacro
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Macro to send a value to the PPU_DATA (at $2007)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .macro PPU_SETDATA val
@@ -118,4 +139,37 @@
     lda index
     sta SfxBuffer+channel
   .endif
+.endmacro
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Rotate a set of tiles to the left
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+.macro ROTATE_TILE_LEFT addr,tile,length
+
+;    lda #0
+;    sta PPU_CTRL                                  ; Disable NMI
+
+    PUSH_PPU_ADDR
+
+    PPU_SETADDR addr
+    ldx #0                                        ; Tile offet
+@LoopRotateTileLeft:
+    cpx length
+    bne @LoopRotateTileLeftContinue
+        ldx #$FF                                  ; Tile rotation overflowed, starting over from #$FF
+@LoopRotateTileLeftContinue:
+    inx
+
+
+    lda tile
+    adc #11
+    sta PPU_DATA
+
+    cpx #0
+    bne @LoopRotateTileLeft
+
+    PULL_PPU_ADDR
+
+;    lda #NMI_BIT_SEQUENCE                         ; Enable NMI and set background to use the 2nd pattern table (at $1000)
+;    sta PPU_CTRL
 .endmacro

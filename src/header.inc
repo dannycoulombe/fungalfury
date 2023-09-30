@@ -4,7 +4,7 @@
 .segment "HEADER"
 .byte $4E,$45,$53,$1A                             ; 4 bytes with the characters NES + \n
 .byte $02                                         ; How many 16KB of PRG-ROM
-.byte $01                                         ; How may 8KB of CHR-ROM
+.byte $02                                         ; How may 8KB of CHR-ROM
 
 ;76543210
 ;||||||||
@@ -14,7 +14,7 @@
 ;|||||+--- 1: 512-byte trainer at $7000-$71FF (stored before PRG data)
 ;||||+---- 1: Ignore mirroring control or above mirroring bit; instead provide four-screen VRAM
 ;++++----- Lower nybble of mapper number
-.byte %01000001                                   ; Mapper 004, Vertical mirroring
+.byte %01000001                                   ; MMC3 Mapper 004, Vertical mirroring
 
 ;76543210
 ;||||||||
@@ -27,5 +27,5 @@
 .byte $00                                         ; No PRG-RAM
 .byte $00                                         ; NTSC TV format
 .byte $00                                         ; Extra flags for TV format and PRG-RAM
-.byte $00,$00,$00,$00,$00                         ; Unused paddin to complete 16 bytes of header
+.byte $00,$00,$00,$00,$00                         ; Unused padding to complete 16 bytes of header
 

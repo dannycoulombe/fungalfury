@@ -32,15 +32,11 @@
 ;; Subroutine to a full 1024 bytes nametable
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .macro LOAD_NAMETABLE addr
-    bit PPU_STATUS
-
+    PPU_SETADDR $2000
     lda #>addr
     sta BgPtr+1
     lda #<addr
     sta BgPtr+0
-
-    PPU_SETADDR $2000
-
     jsr LoadNametable
 .endmacro
 .proc LoadNametable
@@ -74,22 +70,9 @@ EndLoop:
     sta Param1
     lda ActorsArray+Actor::XPos,x
     sta Param2
+    lda ActorsArray+Actor::Type,x
+    sta Param3
     jsr SetMetasprite
-.endmacro
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Prefill the current actor parameters and launch the SetMetaObject subroutine
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-.macro SET_CURRENT_ACTOR_METAOBJECT addr
-    lda #<addr
-    sta ParamPtr1
-    lda #>addr
-    sta ParamPtr1+1
-    lda ActorsArray+Actor::YPos,x
-    sta Param1
-    lda ActorsArray+Actor::XPos,x
-    sta Param2
-    jsr SetMetaObject
 .endmacro
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -97,15 +80,32 @@ EndLoop:
 ;; pointer,yPos,xPos
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .proc SetMetasprite
-    ldy #0                                        ; Index of byte to read
+    PUSH_REGS
 
+    ldy #0                                        ; Index of byte to read
 @LoopMetaSprite:
-    ldx #0
 
     lda (ParamPtr1),y                             ; Load first byte
-    cmp $80                                       ; First check if current byte has $80 terminator
+    cmp #$80                                      ; First check if current byte has $80 terminator
     beq @LoopMetaSpriteEnd                        ; If $80 terminator, end loop
 
+    lda Param3
+    cmp #0
+    bne :+
+        lda #255
+        sta (SprPtr),y
+        iny
+        sta (SprPtr),y
+        iny
+        sta (SprPtr),y
+        iny
+        sta (SprPtr),y
+        iny
+
+        jmp @LoopMetaSprite
+    :
+
+    lda (ParamPtr1),y                             ; Load first byte
     adc Param1                                    ; Add base Y position to it
     sta (SprPtr),y                                ; Push to sprite pointer
     iny
@@ -123,15 +123,35 @@ EndLoop:
     sta (SprPtr),y                                ; Store it in sprite pointer
     iny
 
-    pla                                           ; Retrieve sprite count
-    tax
-    dex                                           ; Decrement sprite count
-    txa
-    bne @LoopMetaSprite
+    jmp @LoopMetaSprite
 
 @LoopMetaSpriteEnd:
+
+    clc
+    lda #$02
+    sta SprPtr+1
+    tya
+    adc SprPtr
+    sta SprPtr
+
+    PULL_REGS
     rts
 .endproc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Prefill the current actor parameters and launch the SetMetaObject subroutine
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+.macro SET_CURRENT_ACTOR_METAOBJECT addr
+    lda #<addr
+    sta ParamPtr1
+    lda #>addr
+    sta ParamPtr1+1
+    lda ActorsArray+Actor::YPos,x
+    sta Param1
+    lda ActorsArray+Actor::XPos,x
+    sta Param2
+    jsr SetMetaObject
+.endmacro
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Loop through a background object dataset and send the sprites to the
@@ -145,8 +165,8 @@ EndLoop:
     ldx #0
 
     lda (ParamPtr1),y                             ; Load first byte
-    cmp $80                                       ; First check if current byte has $80 terminator
-    beq @LoopMetaSpriteEnd                        ; If $80 terminator, end loop
+;    cmp #$80                                       ; First check if current byte has $80 terminator
+;    beq @LoopMetaSpriteEnd                        ; If $80 terminator, end loop
 
     adc Param1                                    ; Add base Y position to it
     sta (BgPtr),y                                 ; Push to sprite pointer
@@ -185,3 +205,13 @@ EndLoop:
     sta PPU_SCROLL
     rts
 .endproc
+
+.macro CLEAR_CURRENT_ACTOR addr
+    lda #ActorType::NULL
+    sta ActorsArray+Actor::Type,x
+    lda #0
+    sta ActorsArray+Actor::XPos,x
+    sta ActorsArray+Actor::YPos,x
+
+    SET_CURRENT_ACTOR_METASPRITE addr
+.endmacro

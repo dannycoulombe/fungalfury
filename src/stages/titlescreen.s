@@ -6,11 +6,15 @@
     LOAD_NAMETABLE TitlescreenData                ; Load the titlescreen nametable
     PLAY_MUSIC music_data_titlescreen             ; Play the titlescreen music
 
-;    CALL_PROC PushActor,#ActorType::SMALL_CLOUD, #24, #88
+    CALL_PROC PushActor,#ActorType::SMALL_CLOUD, #40, #32
+    CALL_PROC PushActor,#ActorType::BIG_CLOUD, #24, #168
     rts
   .endproc
 
   .proc update
+
+;    ROTATE_TILE_LEFT $2360,#$F0,#4
+
     lda Clock60
     cmp #03                                       ; Wait for 3 seconds
     bne @TitlescreenUpdateEnd

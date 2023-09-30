@@ -37,6 +37,7 @@ BUTTON_RIGHT          = $01                       ; 00000001
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 NMI_BIT_SEQUENCE      = %10010000
 PPU_MASK_BIT_SEQUENCE = %00011110
+ANIM_BANK_POSITION    = 5                         ; CHR bank at $1c00
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; In-Game constants

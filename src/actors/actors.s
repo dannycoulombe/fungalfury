@@ -1,6 +1,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Subroutine to add new actor to the array in the first empty slot found
-;; Params = Type, XPos, YPos
+;; Params = Type, YPos, XPos
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .proc PushActor
     ldx #0                                        ; X = 0
@@ -27,9 +27,7 @@
     lda #ActorState::IDLE
     sta ActorsArray+Actor::State,x                ; Every actor are idles
     lda #0
-    sta ActorsArray+Actor::Frame,x                ; Every actor are idles
-    lda #0
-    sta ActorsArray+Actor::Clock,x                ; Every actor are idles
+    sta ActorsArray+Actor::Clock,x                ; Clock starts at zero
   EndRoutine:
     rts
 .endproc
@@ -72,10 +70,18 @@
     .include "small-cloud.s"
   AfterActorSmallCloud:
 
+    lda ActorsArray+Actor::Type,x
+    cmp #ActorType::BIG_CLOUD
+    beq :+
+      jmp AfterActorBigCloud
+    :
+    .include "big-cloud.s"
+  AfterActorBigCloud:
+
     inc ActorsArray+Actor::Clock,x
   NextActor:                                      ; Fetch the next actor from the array
     txa
-    clc
+    clc                                           ; Clear the carry flag (inc Clock)
     adc #.sizeof(Actor)
     tax
     cmp #MAX_ACTORS * .sizeof(Actor)
